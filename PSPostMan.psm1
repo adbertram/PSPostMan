@@ -302,7 +302,7 @@ function Publish-Package
         [ValidateNotNullOrEmpty()]
         [string]$FeedUrl,
 
-        [Parameter()]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$ApiKey,
 
@@ -330,7 +330,7 @@ function Publish-Package
             $pushArgs = $pushArgs.Trim()
 
             Write-Verbose -Message "Publishing package using Nuget args: [push `"$Path`" $pushArgs]"
-            $result = Invoke-Expression "& $($Defaults.LocalNuGetExePath) push `"$Path`" $pushArgs"
+            $result = Invoke-Expression -Command "& $($Defaults.LocalNuGetExePath) push `"$Path`" $pushArgs"
             if (-not ($result -match 'package was pushed')) {
                 throw $result
             }
@@ -508,13 +508,13 @@ function Publish-Module
         [ValidateNotNullOrEmpty()]
         [string]$FolderPath,
 
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$FeedUrl = $Defaults.NugetServerUrl,
-
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$NuGetApiKey,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$FeedUrl = $Defaults.NugetServerUrl,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -547,11 +547,8 @@ function Publish-Module
 
             $publishPackParams = @{
                 FeedUrl = $FeedUrl
+                ApiKey = $NuGetApiKey
             }
-            if ($NuGetApiKey)
-            {
-                $publishPackParams.ApiKey = $NuGetApiKey
-			}
 
             if (($depModules = Get-DependentModule -ModuleName $moduleName -Recurse) -and (-not $PublishDependentModules.IsPresent)) {
                 throw "The module(s) [$($moduleName -join ',')] have dependent module(s) [$($depModules.Name -join ',')]. Use -PublishDependentModules to publish these as well."
