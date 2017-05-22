@@ -13,6 +13,10 @@ describe 'Module-level tests' {
 		{ Test-ModuleManifest -Path $ThisModule -ErrorAction Stop } | should not throw
 	}
 
+	it 'should pass all error-level script analyzer rules' {
+		Invoke-PSScriptAnalyzer -Path $PSScriptRoot -Severity Error
+	}
+
 }
 
 InModuleScope $ThisModuleName {
