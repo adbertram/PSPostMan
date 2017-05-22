@@ -125,7 +125,7 @@ function New-Package
                 $specParams[$_] = (Get-Variable -Name $_).Value
             })
 
-            $packSpec = New-PmPackageSpec @specParams
+            $packSpec = New-PackageSpec @specParams
             #endregion
 
             ## Create the nuget package
