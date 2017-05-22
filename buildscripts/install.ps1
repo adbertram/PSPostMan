@@ -1,5 +1,3 @@
-Write-Host 'Installing necessary PowerShell modules...'
-
 $provParams = @{
 	Name = 'NuGet'
 	MinimumVersion = '2.8.5.208'
@@ -11,7 +9,7 @@ $null = Import-PackageProvider @provParams
 
 $requiredModules = @('Pester','PowerShellGet','PSScriptAnalyzer')
 foreach ($m in $requiredModules) {
-	Write-Verbose -Message "Installing module [$($m)]..."
+	Write-Host -Message "Installing module [$($m)]..."
 	Install-Module -Name $m -Force -Confirm:$false
 	Remove-Module -Name $m -Force -ErrorAction Ignore
 	Import-Module -Name $m
