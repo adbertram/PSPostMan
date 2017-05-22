@@ -4,13 +4,6 @@ $Defaults = @{
     NuGetExeUrl = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'
 }
 
-if (-not (Test-Path -Path $Defaults.LocalNuGetExePath -PathType Leaf)) {
-    Write-Warning -Message 'Nuget.exe not found in module folder. Downloading...'
-    Write-Verbose -Message 'Downloading the latest nuget EXE...'
-    Invoke-WebRequest -UseBasicParsing -Uri $Defaults.NuGetExeUrl -OutFile "$PSScriptRoot\nuget.exe"
-    Write-Verbose -Message 'Done.'
-}
-
 function New-Package
 {
     [OutputType([System.IO.FileInfo])]
