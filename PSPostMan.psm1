@@ -446,7 +446,7 @@ function Get-DependentModule
     }
 }
 
-function New-PmModulePackage
+function New-ModulePackage
 {
     [OutputType([System.IO.FileInfo])]
     [CmdletBinding()]
