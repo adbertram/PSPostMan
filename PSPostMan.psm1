@@ -1,10 +1,19 @@
 $Defaults = @{
     NugetServerUrl = 'https://www.powershellgallery.com/api/v2/package/'
+    LocalNuGetExePath = "$PSScriptRoot\nuget.exe"
+    NuGetExeUrl = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'
+}
+
+if (-not (Test-Path -Path $Defaults.LocalNuGetExePath -PathType Leaf)) {
+    Write-Warning -Message 'Nuget.exe not found in module folder. Downloading...'
+    Write-Verbose -Message 'Downloading the latest nuget EXE...'
+    Invoke-WebRequest -UseBasicParsing -Uri $Defaults.NuGetExeUrl -OutFile "$PSScriptRoot\nuget.exe"
+    Write-Verbose -Message 'Done.'
 }
 
 function New-Package
 {
-    [OutputType([void])]
+    [OutputType([System.IO.FileInfo])]
     [CmdletBinding()]
     param
     (
@@ -97,6 +106,9 @@ function New-Package
     {
         try
         {
+
+            if (($Version).Build -eq '-1') { $Version = "$Version.0" }
+
             #region Build the nuget spec
             $specParamNames = @(
                 'Version',
@@ -120,11 +132,11 @@ function New-Package
                 $specParams[$_] = (Get-Variable -Name $_).Value
             })
 
-            $packSpec = New-PackageSpec @specParams
+            $packSpec = New-PmPackageSpec @specParams
             #endregion
 
             ## Create the nuget package
-            $result = nuget pack $packSpec.FullName -OutputDirectory $OutputFolderPath.TrimEnd('\') -BasePath $FolderPath.TrimEnd('\')
+            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $OutputFolderPath.TrimEnd('\') -BasePath $FolderPath.TrimEnd('\')
             if (($result -join ' ') -notmatch 'Successfully created package') {
                 throw $result
             } elseif ($PassThru) {
@@ -236,13 +248,13 @@ function New-PackageSpec
 "@
 
             $optionalNodes = @(
-                "Owners"
-                "LicenseUrl"
-                "ProjectUrl"
-                "IconUrl"
-                "ReleaseNotes"
-                "Tags"
-                "Dependencies"
+                "owners"
+                "licenseUrl"
+                "projectUrl"
+                "iconUrl"
+                "releaseNotes"
+                "tags"
+                "dependencies"
             )
 
             @($optionalNodes).where({ $PSBoundParameters.ContainsKey($_) }).foreach({
@@ -251,7 +263,7 @@ function New-PackageSpec
                 } else {
                     $nodeName = $_
                 }
-                $nodeName = $nodeName.ToLower()
+                $nodeName = $nodeName
                 $xNode = $xDoc.CreateElement($nodeName)
                 if ($_ -eq 'Dependencies') {
                     @($Dependencies).foreach({
@@ -325,7 +337,7 @@ function Publish-Package
             $pushArgs = $pushArgs.Trim()
 
             Write-Verbose -Message "Publishing package using Nuget args: [push `"$Path`" $pushArgs]"
-            $result = Invoke-Expression "nuget push `"$Path`" $pushArgs"
+            $result = Invoke-Expression "& $($Defaults.LocalNuGetExePath) push `"$Path`" $pushArgs"
             if (-not ($result -match 'package was pushed')) {
                 throw $result
             }
@@ -387,7 +399,7 @@ function Remove-Package
                     Version = $PackageInfo.Version
                 }
             }
-            $nuGetCli = "nuget delete $($pack.Name) $($pack.Version) -NonInteractive -source $FeedUrl"
+            $nuGetCli = "& $Defaults.LocalNuGetExePath delete $($pack.Name) $($pack.Version) -NonInteractive -source $FeedUrl"
             if ($NuGetApiKey) {
                 $nuGetCli += " -ApiKey $NuGetApiKey"
             }
@@ -441,23 +453,75 @@ function Get-DependentModule
     }
 }
 
+function New-PmModulePackage
+{
+    [OutputType([System.IO.FileInfo])]
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FolderPath,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [switch]$PassThru
+    )
+    ## TODO ADB: Get all manifest attributes
+    $moduleName = ($FolderPath | Split-Path -Leaf)
+    $manifest = Import-PowerShellDataFile -Path "$FolderPath\$moduleName.psd1"
+    $manifestAttribToPackageMap = @{
+        'ModuleVersion' = 'Version'
+        'Description' = 'Description'
+        'Author' = 'Authors'
+        @('PrivateData','PSData','Tags') = 'Tags'
+        @('PrivateData','PSData','ProjectUri') = 'ProjectUrl'
+    }
+
+    $newPackageParams = @{
+        Name = $moduleName
+        FolderPath = $FolderPath
+        OutputFolderPath = $FolderPath
+    }
+    if ($PassThru.IsPresent) {
+        $newPackageParams.PassThru = $true
+    }
+
+    $manifestAttribToPackageMap.GetEnumerator() | foreach {
+        $val = $manifest.Clone()
+        if ($_.Key -is 'array') {
+            foreach ($p in $_.Key) { 
+                $val = $val.$p 
+            }
+        } else {
+            $val = $manifest.($_.Key)
+        }
+        $newPackageParams.($_.Value) = $val
+    }
+    New-PmPackage @newPackageParams
+}
+
 function Publish-Module
 {
     [OutputType([void])]
     [CmdletBinding()]
     param
     (
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory,ParameterSetName = 'ByName')]
         [ValidateNotNullOrEmpty()]
         [string[]]$Name,
+
+        [Parameter(Mandatory,ParameterSetName = 'ByFolderPath')]
+        [ValidateNotNullOrEmpty()]
+        [string]$FolderPath,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$FeedUrl = $Defaults.NugetServerUrl,
 
-        [Parameter()]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$NuGetApiKey = 'secret',
+        [string]$NuGetApiKey,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -465,11 +529,7 @@ function Publish-Module
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [switch]$PublishDependentModules,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string[]]$Tags
+        [switch]$PublishDependentModules
     )
     begin
     {
@@ -479,8 +539,16 @@ function Publish-Module
     {
         try
         {
-            $modulesToPublish = Get-Module -Name $Name -ListAvailable
-            if (@($modulesToPublish).Count -ne @($Name).Count) {
+            if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+                $getModuleName = $Name
+                $moduleName = $Name
+            } else {
+                $getModuleName = $FolderPath
+                $moduleName = Split-Path -Path $FolderPath -Leaf
+            }
+            $modulesToPublish = Get-Module -Name $getModuleName -ListAvailable
+
+            if (@($modulesToPublish).Count -ne @($moduleName).Count) {
                 throw 'One or more modules could not be found.'
             }
 
@@ -492,8 +560,8 @@ function Publish-Module
                 $publishPackParams.ApiKey = $NuGetApiKey
 			}
 
-            if (($depModules = Get-DependentModule -ModuleName $Name -Recurse) -and (-not $PublishDependentModules.IsPresent)) {
-                throw "The module(s) [$($Name -join ',')] have dependent module(s) [$($depModules.Name -join ',')]. Use -PublishDependentModules to publish these as well."
+            if (($depModules = Get-DependentModule -ModuleName $moduleName -Recurse) -and (-not $PublishDependentModules.IsPresent)) {
+                throw "The module(s) [$($moduleName -join ',')] have dependent module(s) [$($depModules.Name -join ',')]. Use -PublishDependentModules to publish these as well."
             } else {
                 @($depModules).foreach({
                     if (-not (Test-ModuleExists -Name $_.Name))
@@ -503,8 +571,8 @@ function Publish-Module
                     else
                     {
                         Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-                        $pkg = New-Package -FolderPath $_.ModuleBase -PassThru -Version $_.Version
-                        Publish-Package @publishPackParams -Path $pkg.FullName
+                        $pkg = New-PmPackage -FolderPath $_.ModuleBase -PassThru -Version $_.Version
+                        Publish-PmPackage @publishPackParams -Path $pkg.FullName
                         Remove-Item -Path $pkg.FullName -ErrorAction Ignore
                     }
                 })
@@ -514,26 +582,22 @@ function Publish-Module
                 $newPkgParams = @{
                     FolderPath = $_.ModuleBase
                     PassThru = $true
-                    Version = $_.Version
-                }
-                if ($PSBoundParameters.ContainsKey('Tags'))
-                {
-                    $newPkgParams.Tags = $Tags
                 }
                 if ($depModules) {
                     $newPkgParams.Dependencies = @($depModules).foreach({
                         @{id=$_.Name;version=$_.Version}
                     })
                 }
-                $pkg = New-Package @newPkgParams
-                Publish-Package @publishPackParams -Path $pkg.FullName
-                Remove-Item -Path $pkg.FullName -ErrorAction Ignore    
+                $pkg = New-PmModulePackage @newPkgParams
+                Publish-PmPackage @publishPackParams -Path $pkg.FullName
             })
             
         }
         catch
         {
             $PSCmdlet.ThrowTerminatingError($_)
+        } finally {
+            Remove-Item -Path $pkg.FullName -ErrorAction Ignore
         }
     }
 }
@@ -599,7 +663,7 @@ function Find-Package
                 $whereFilter = { $_ }
             }
 
-            $packageList = @(nuget list -Source $FeedUrl).where($whereFilter)
+            $packageList = @(& $Defaults.LocalNuGetExePath list -Source $FeedUrl).where($whereFilter)
             if ($packageList -notmatch 'no packages found') {
                 @($packageList).foreach({
                     $split = $_.Split(' ') 
@@ -696,8 +760,8 @@ function Publish-DscResource
 								{
                                     Publish-Module -FeedUrl $FeedUrl -Name $_.Name -
 									Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-									$pkg = New-Package -FolderPath $_.ModuleBase -PassThru -Version $_.Version
-									Publish-Package @publishPackParams -Path $pkg.FullName
+									$pkg = New-PmPackage -FolderPath $_.ModuleBase -PassThru -Version $_.Version
+									Publish-PmPackage @publishPackParams -Path $pkg.FullName
 									Remove-Item -Path $pkg.FullName -ErrorAction Ignore
 								}
 							}
@@ -716,8 +780,8 @@ function Publish-DscResource
                         @{id=$_.Name;version=$_.Version}
                     })
                 }
-                $pkg = New-Package @newPkgParams
-                Publish-Package @publishPackParams -Path $pkg.FullName
+                $pkg = New-PmPackage @newPkgParams
+                Publish-PmPackage @publishPackParams -Path $pkg.FullName
                 Remove-Item -Path $pkg.FullName -ErrorAction Ignore
             })
         }
