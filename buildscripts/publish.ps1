@@ -2,9 +2,10 @@ $ErrorActionPreference = 'Stop'
 
 try {
 	## Don't upload the build scripts and appveyor.yml to PowerShell Gallery
-	$moduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\PSPostMan"
-	$null = mkdir $moduleFolderPath
+	$tempmoduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\PSPostMan"
+	$null = mkdir $tempmoduleFolderPath
 
+	## Move all of the files/folders to exclude out of the main folder
 	$excludeFromPublish = @(
 		'PSPostMan\\buildscripts'
 		'PSPostMan\\appveyor\.yml'
@@ -12,18 +13,16 @@ try {
 		'PSPostMan\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
-	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | foreach { 
-		Write-Host '--------'
-		Write-Host $_.FullName
-		Write-Host '--------'
-		Write-Host (Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length))
-		Write-Host '--------'
-		Copy-Item -Path $_.FullName -Destination (Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)) 
-	}
+	$temp = "$env:APPVEYOR_BUILD_FOLDER\temp"
+	$null = mkdir $temp
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -match $exclude } | Move-Item -Destination $temp
+
+	## Copy only the package contents to the module folder
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | Copy-Item -Destination $tempmoduleFolderPath
 
 	## Publish module to PowerShell Gallery
 	$publishParams = @{
-		Path = $moduleFolderPath
+		Path = $tempmoduleFolderPath
 		NuGetApiKey = $env:nuget_apikey
 		Repository = 'PSGallery'
 		Force = $true
