@@ -330,7 +330,7 @@ function Publish-Package
             $pushArgs = $pushArgs.Trim()
 
             Write-Verbose -Message "Publishing package using Nuget args: [push `"$Path`" $pushArgs]"
-            $result = Invoke-Expression -Command "& $($Defaults.LocalNuGetExePath) push `"$Path`" $pushArgs"
+            $result = Invoke-Expression -Command "& '$($Defaults.LocalNuGetExePath)' push `"$Path`" $pushArgs"
             if (-not ($result -match 'package was pushed')) {
                 throw $result
             }
