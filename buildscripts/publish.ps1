@@ -1,13 +1,18 @@
 $ErrorActionPreference = 'Stop'
 
-## To silence the progress bar for Publish-Module
-$ProgressPreference = 'SilentlyContinue'
-
 try {
 	## Don't upload the build scripts and appveyor.yml to PowerShell Gallery
 	$moduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\PSPostMan"
 	$null = mkdir $moduleFolderPath
-	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER | where { $_.Name -notmatch 'buildscripts|appveyor\.yml'} | Copy-Item -Destination $moduleFolderPath
+
+	$excludeFromPublish = @(
+		'PSPostMan\\buildscripts'
+		'PSPostMan\\appveyor\.yml'
+		'PSPostMan\\\.git'
+		'PSPostMan\\README\.md'
+	)
+	$exclude = $excludeFromPublish -join '|'
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | Copy-Item -Destination {Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)}
 
 	## Publish module to PowerShell Gallery
 	$publishParams = @{
@@ -20,5 +25,6 @@ try {
 	Publish-Module @publishParams
 
 } catch {
+	Write-Error -Message $_.Exception.Message
 	$host.SetShouldExit($LastExitCode)
 }
