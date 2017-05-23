@@ -13,6 +13,11 @@ try {
 	)
 	$exclude = $excludeFromPublish -join '|'
 	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | foreach { 
+		Write-Host '--------'
+		Write-Host $_.FullName
+		Write-Host '--------'
+		Write-Host (Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length))
+		Write-Host '--------'
 		Copy-Item -Path $_.FullName -Destination (Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)) 
 	}
 
