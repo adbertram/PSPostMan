@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 try {
 	## Don't upload the build scripts and appveyor.yml to PowerShell Gallery
-	$tempmoduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\PSPostMan"
+	$tempmoduleFolderPath = "$env:Temp\PSPostMan"
 	$null = mkdir $tempmoduleFolderPath
 
 	## Move all of the files/folders to exclude out of the main folder
@@ -13,9 +13,7 @@ try {
 		'PSPostMan\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
-	$temp = "$env:APPVEYOR_BUILD_FOLDER\temp"
-	$null = mkdir $temp
-	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -match $exclude } | Move-Item -Destination $temp
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -match $exclude } | Move-Item -Destination $env:temp
 
 	## Copy only the package contents to the module folder
 	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | Copy-Item -Destination $tempmoduleFolderPath
