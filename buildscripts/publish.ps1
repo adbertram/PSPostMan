@@ -12,7 +12,9 @@ try {
 		'PSPostMan\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
-	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | Copy-Item -Destination {Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)}
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | foreach { 
+		Copy-Item -Path $_.FullName -Destination (Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)) 
+	}
 
 	## Publish module to PowerShell Gallery
 	$publishParams = @{
