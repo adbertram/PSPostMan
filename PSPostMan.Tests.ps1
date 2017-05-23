@@ -25,6 +25,12 @@ describe 'Module-level tests' {
 
 InModuleScope $ThisModuleName {
 
+	$Defaults = @{
+		NugetServerUrl = 'https://www.powershellgallery.com/api/v2/package/'
+		LocalNuGetExePath = 'C:\folder\nuget.exe'
+		NuGetExeUrl = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'
+	}
+
 	describe 'New-PmModulePackage' {
 	
 		$commandName = 'New-PmModulePackage'
@@ -216,7 +222,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('push "{0}" -source {1} -ApiKey {2}' -f $Path,$FeedUrl,$ApiKey))
+						$matchString = [regex]::Escape(("& '{3}' push `"{0}`" -source {1} -ApiKey {2}" -f $Path,$FeedUrl,$ApiKey,$Defaults.LocalNuGetExePath))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}
@@ -238,7 +244,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('push "{0}" -timeout {1} -source {2} -ApiKey {3}' -f $Path,$Timeout,$FeedUrl,$ApiKey))
+						$matchString = [regex]::Escape(("& '{4}' push `"{0}`" -timeout {1} -source {2} -ApiKey {3}" -f $Path,$Timeout,$FeedUrl,$ApiKey,$Defaults.LocalNuGetExePath))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}
