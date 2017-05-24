@@ -207,7 +207,7 @@ function Invoke-NuGet
         $cmd = Start-Process @startProcessParams
         $cmdOutput = Get-Content -Path $stdOutTempFile.FullName -Raw
         $cmdError = Get-Content -Path $stdErrTempFile.FullName -Raw
-        if (($cmd.ExitCode -ne 0) -or ($cmdOutput -join ' ') -notmatch 'Successfully created package')
+        if ($cmd.ExitCode -ne 0)
         {
             throw $cmdError
         } 
@@ -412,9 +412,9 @@ function Publish-Package
         {
             $nugetArgs = [ordered]@{
                 $Path = $null
-                Timeout = "-timeout $Timeout"
-                FeedUrl = "-source $FeedUrl"
-                ApiKey = "-ApiKey $ApiKey"
+                Timeout = $Timeout
+                Source = $FeedUrl
+                ApiKey = $ApiKey
             }
             $null = Invoke-NuGet -Action 'push' -Arguments $nugetArgs
         }
