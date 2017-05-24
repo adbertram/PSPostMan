@@ -322,7 +322,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('{0} {1} "C:\package.nuspec" -OutputDirectory "val" -BasePath "val2"' -f $Defaults.LocalNuGetExePath,$Action))
+						$matchString = [regex]::Escape(("'{0}' {1} `"C:\package.nuspec`" -OutputDirectory `"val`" -BasePath `"val2`"" -f $Defaults.LocalNuGetExePath,$Action))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}
@@ -344,7 +344,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('{0} {1} "C:\package.nuspec" -timeout "1" -source "val2" -apikey "xxx"' -f $Defaults.LocalNuGetExePath,$Action))
+						$matchString = [regex]::Escape(("'{0}' {1} `"C:\package.nuspec`" -timeout `"1`" -source `"val2`" -apikey `"xxx`"" -f $Defaults.LocalNuGetExePath,$Action))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}

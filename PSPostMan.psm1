@@ -174,7 +174,7 @@ function Invoke-NuGet
         }
     }
     $argString = $argArr -join ' '
-    $nuGetCmd = "{0} {1} {2}" -f $Defaults.LocalNuGetExePath,$Action,$argString
+    $nuGetCmd = "'{0}' {1} {2}" -f $Defaults.LocalNuGetExePath,$Action,$argString
     Write-Verbose -Message $nuGetCmd
     $result = Invoke-Expression -Command $nuGetCmd
     if (($result -join ' ') -notmatch 'Successfully created package') {
