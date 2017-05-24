@@ -38,7 +38,7 @@ function New-Package
 				$true
 			}
 		})]
-        [string]$PackageFilePath = '.',
+        [string]$PackageFolderPath = '.',
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -129,14 +129,15 @@ function New-Package
             #endregion
 
             ## Create the nuget package
-            Invoke-NuGet -Action 'pack' -Arguments @{ 
+            $null = Invoke-NuGet -Action 'pack' -Arguments @{
+                '-NoPackageAnalysis' = $null
                 $packSpec.FullName = $null;
-                OutputDirectory = $PackageFilePath.TrimEnd('\')
+                OutputDirectory = $PackageFolderPath.TrimEnd('\')
                 BasePath = $Path.TrimEnd('\') 
             }
             
             if ($PassThru) {
-                Get-Item -Path "$PackageFilePath\$Name.$Version.nupkg"
+                Get-Item -Path "$PackageFolderPath\$Name.$Version.nupkg"
             }
         }
         catch
@@ -174,9 +175,7 @@ function Invoke-NuGet
         }
     }
     $argString = $argArr -join ' '
-    $nuGetCmd = "'{0}' {1} {2}" -f $Defaults.LocalNuGetExePath,$Action,$argString
-    Write-Verbose -Message $nuGetCmd
-    $result = Invoke-Expression -Command $nuGetCmd
+    $result = Start-Process -FilePath $Defaults.LocalNuGetExePath -ArgumentList "$Action $argString" -Wait -NoNewWindow
     if (($result -join ' ') -notmatch 'Successfully created package') {
         throw $result
     } else {
@@ -508,7 +507,7 @@ function New-ModulePackage
     $newPackageParams = @{
         Name = $moduleName
         Path = $Path
-        PackageFilePath = $Path
+        PackageFolderPath = $Path
     }
     if ($PassThru.IsPresent) {
         $newPackageParams.PassThru = $true

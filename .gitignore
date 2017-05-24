@@ -2,3 +2,5 @@
 .sync/StreamsList
 
 .sync/IgnoreList
+
+.sync/ID

@@ -111,7 +111,7 @@ InModuleScope $ThisModuleName {
 				ParameterFilter = { 
 					$PSBoundParameters.Name -eq 'module' -and
 					$PSBoundParameters.Path -eq $Path -and
-					$PSBoundParameters.PackageFilePath -eq $Path
+					$PSBoundParameters.PackageFolderPath -eq $Path
 					$PSBoundParameters.Version -eq '1.0' -and
 					$PSBoundParameters.Desription -eq 'deschere'
 					$PSBoundParameters.Authors -eq 'Adam Bertram' -and
@@ -285,7 +285,7 @@ InModuleScope $ThisModuleName {
 		$command = Get-Command -Name $commandName
 	
 		#region Mocks
-			mock 'Invoke-Expression' {
+			mock 'Start-Process' {
 				'Successfully created package'
 			}
 		#endregion
@@ -317,13 +317,13 @@ InModuleScope $ThisModuleName {
 				$result = & $commandName @PSBoundParameters
 
 				$assMParams = @{
-					CommandName = 'Invoke-Expression'
+					CommandName = 'Start-Process'
 					Times = 1
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(("'{0}' {1} `"C:\package.nuspec`" -OutputDirectory `"val`" -BasePath `"val2`"" -f $Defaults.LocalNuGetExePath,$Action))
-						$PSBoundParameters.Command -match $matchString
+						$matchString = [regex]::Escape(("{0} `"C:\package.nuspec`" -OutputDirectory `"val`" -BasePath `"val2`"" -f $Action))
+						$PSBoundParameters.ArgumentList -match $matchString
 					}
 				}
 				Assert-MockCalled @assMParams
@@ -339,13 +339,13 @@ InModuleScope $ThisModuleName {
 				$result = & $commandName @PSBoundParameters
 
 				$assMParams = @{
-					CommandName = 'Invoke-Expression'
+					CommandName = 'Start-Process'
 					Times = 1
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(("'{0}' {1} `"C:\package.nuspec`" -timeout `"1`" -source `"val2`" -apikey `"xxx`"" -f $Defaults.LocalNuGetExePath,$Action))
-						$PSBoundParameters.Command -match $matchString
+						$matchString = [regex]::Escape(("{0} `"C:\package.nuspec`" -timeout `"1`" -source `"val2`" -apikey `"xxx`"" -f $Action))
+						$PSBoundParameters.ArgumentList -match $matchString
 					}
 				}
 				Assert-MockCalled @assMParams
@@ -354,7 +354,7 @@ InModuleScope $ThisModuleName {
 
 		context 'when nuget.exe fails' {
 			
-			mock 'Invoke-Expression'
+			mock 'Start-Process'
 
 			it 'should throw an exception: <TestName>' -TestCases $testCases.All {
 				param($Action,$Arguments)
@@ -667,20 +667,20 @@ InModuleScope $ThisModuleName {
 		}
 	
 		it 'when PassThru is used, returns the same object type as defined in OutputType: <TestName>' -TestCases $testCases.PassThru {
-			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+			param($Path,$Name,$PackageFolderPath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
 	
 			& $commandName @PSBoundParameters | should beoftype $command.OutputType.Name
 	
 		}
 
 		it 'when PassThru is not used, should return nothing: <TestName>' -TestCases $testCases.All {
-			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+			param($Path,$Name,$PackageFolderPath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
 		
 			& $commandName @PSBoundParameters | should benullorempty
 		}
 
 		it 'should remove the temp nuspec file: <TestName>' -TestCases $testCases.All {
-			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+			param($Path,$Name,$PackageFolderPath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
 		
 			$result = & $commandName @PSBoundParameters
 
