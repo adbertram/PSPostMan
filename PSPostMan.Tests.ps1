@@ -61,11 +61,11 @@ InModuleScope $ThisModuleName {
 		
 		$parameterSets = @(
 			@{
-				FolderPath = $testModulePath
+				Path = $testModulePath
 				TestName = 'Mandatory parameters'
 			}
 			@{
-				FolderPath = $testModulePath
+				Path = $testModulePath
 				PassThru = $true
 				TestName = 'Mandatory parameters'
 			}
@@ -80,7 +80,7 @@ InModuleScope $ThisModuleName {
 		context 'when PassThru is used' {
 		
 			it 'should should return the same object in OutputType: <TestName>' -TestCases $testCases.PassThru {
-				param($FolderPath,$PassThru)
+				param($Path,$PassThru)
 			
 				$result = & $commandName @PSBoundParameters
 			}
@@ -90,7 +90,7 @@ InModuleScope $ThisModuleName {
 		context 'when PassThru is not used' {
 		
 			it 'returns nothing: <TestName>' -TestCases $testCases.NoPassThru {
-				param($FolderPath,$PassThru)
+				param($Path,$PassThru)
 
 				& $commandName @PSBoundParameters | should benullOrEmpty
 	
@@ -99,7 +99,7 @@ InModuleScope $ThisModuleName {
 		}
 
 		it 'should create the package with the expected parameters: <TestName>' -TestCases $testCases.All {
-			param($FolderPath,$PassThru)
+			param($Path,$PassThru)
 		
 			$result = & $commandName @PSBoundParameters
 
@@ -110,8 +110,8 @@ InModuleScope $ThisModuleName {
 				Scope = 'It'
 				ParameterFilter = { 
 					$PSBoundParameters.Name -eq 'module' -and
-					$PSBoundParameters.FolderPath -eq $FolderPath -and
-					$PSBoundParameters.OutputFolderPath -eq $FolderPath
+					$PSBoundParameters.Path -eq $Path -and
+					$PSBoundParameters.OutputFolderPath -eq $Path
 					$PSBoundParameters.Version -eq '1.0' -and
 					$PSBoundParameters.Desription -eq 'deschere'
 					$PSBoundParameters.Authors -eq 'Adam Bertram' -and
@@ -371,16 +371,16 @@ InModuleScope $ThisModuleName {
 				TestName = 'Parameter Set: ByName / Mandatory Parameters'
 			}
 			@{
-				FolderPath = 'C:\mymodule'
+				Path = 'C:\mymodule'
 				NuGetApiKey = 'nugetapikeyhere'
-				TestName = 'Parameter Set: ByFolderPath / Mandatory Parameters'
+				TestName = 'Parameter Set: ByPath / Mandatory Parameters'
 			}
 		)
 	
 		$testCases = @{
 			All = $parameterSets
 			ByName = $parameterSets.where({$_.ContainsKey('Name')})
-			ByFolderPath = $parameterSets.where({$_.ContainsKey('FolderPath')})
+			ByPath = $parameterSets.where({$_.ContainsKey('Path')})
 		}
 
 		context 'when not all modules provided can be found' {
@@ -388,7 +388,7 @@ InModuleScope $ThisModuleName {
 			mock 'Get-Module' -ParameterFilter { $Name }
 
 			it 'should throw an exception: <TestName>' -TestCases $testCases.All {
-				param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+				param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 			
 				$params = @{} + $PSBoundParameters
 				{ & $commandName @params } | should throw 'One or more modules could not be found'
@@ -400,7 +400,7 @@ InModuleScope $ThisModuleName {
 		context 'when called with a module name' {
 		
 			it 'should find the module with the expected name: <TestName>' -TestCases $testCases.ByName {
-				param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+				param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 			
 				$result = & $commandName @PSBoundParameters
 
@@ -418,8 +418,8 @@ InModuleScope $ThisModuleName {
 
 		context 'when called with a folder path' {
 		
-			it 'should find the module with the expected name: <TestName>' -TestCases $testCases.ByFolderPath {
-				param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			it 'should find the module with the expected name: <TestName>' -TestCases $testCases.ByPath {
+				param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 			
 				$result = & $commandName @PSBoundParameters
 
@@ -448,14 +448,14 @@ InModuleScope $ThisModuleName {
 		}
 
 		it 'should return nothing: <TestName>' -TestCases $testCases.All {
-			param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 	
 			& $commandName @PSBoundParameters | should benullOrEmpty
 
 		}
 
 		it 'should use the expected module folder to create package: <TestName>' -TestCases $testCases.All {
-			param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 		
 			$result = & $commandName @PSBoundParameters
 
@@ -464,13 +464,13 @@ InModuleScope $ThisModuleName {
 				Times = @($Name).Count
 				Exactly = $true
 				Scope = 'It'
-				ParameterFilter = { $PSBoundParameters.FolderPath -in $script:availModules.ModuleBase }
+				ParameterFilter = { $PSBoundParameters.Path -in $script:availModules.ModuleBase }
 			}
 			Assert-MockCalled @assMParams
 		}
 
 		it 'should use the created package to publish: <TestName>' -TestCases $testCases.All {
-			param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 		
 			$result = & $commandName @PSBoundParameters
 
@@ -485,7 +485,7 @@ InModuleScope $ThisModuleName {
 		}
 
 		it 'should use the expected URL for publishing: <TestName>' -TestCases $testCases.All {
-			param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 		
 			$result = & $commandName @PSBoundParameters
 
@@ -500,7 +500,7 @@ InModuleScope $ThisModuleName {
 		}
 
 		it 'should use the expected API key for publishing: <TestName>' -TestCases $testCases.All {
-			param($Name,$FolderPath,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
+			param($Name,$Path,$NuGetApiKey,$FeedUrl,$Timeout,$PublishDependencies)
 		
 			$result = & $commandName @PSBoundParameters
 

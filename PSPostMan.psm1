@@ -19,11 +19,11 @@ function New-Package
 				$true
 			}
 		})]
-        [string]$FolderPath,
+        [string]$Path,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [string]$Name = (Split-Path -Path $FolderPath -Leaf),
+        [string]$Name = (Split-Path -Path $Path -Leaf),
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -34,7 +34,7 @@ function New-Package
 				$true
 			}
 		})]
-        [string]$OutputFolderPath = $FolderPath,
+        [string]$OutputFolderPath = $Path,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -129,7 +129,7 @@ function New-Package
             #endregion
 
             ## Create the nuget package
-            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $OutputFolderPath.TrimEnd('\') -BasePath $FolderPath.TrimEnd('\')
+            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $OutputFolderPath.TrimEnd('\') -BasePath $Path.TrimEnd('\')
             if (($result -join ' ') -notmatch 'Successfully created package') {
                 throw $result
             } elseif ($PassThru) {
@@ -454,15 +454,15 @@ function New-ModulePackage
     (
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$FolderPath,
+        [string]$Path,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [switch]$PassThru
     )
     ## TODO ADB: Get all manifest attributes
-    $moduleName = ($FolderPath | Split-Path -Leaf)
-    $manifest = Import-PowerShellDataFile -Path "$FolderPath\$moduleName.psd1"
+    $moduleName = ($Path | Split-Path -Leaf)
+    $manifest = Import-PowerShellDataFile -Path "$Path\$moduleName.psd1"
     $manifestAttribToPackageMap = @{
         'ModuleVersion' = 'Version'
         'Description' = 'Description'
@@ -473,8 +473,8 @@ function New-ModulePackage
 
     $newPackageParams = @{
         Name = $moduleName
-        FolderPath = $FolderPath
-        OutputFolderPath = $FolderPath
+        Path = $Path
+        OutputFolderPath = $Path
     }
     if ($PassThru.IsPresent) {
         $newPackageParams.PassThru = $true
@@ -504,9 +504,9 @@ function Publish-Module
         [ValidateNotNullOrEmpty()]
         [string[]]$Name,
 
-        [Parameter(Mandatory,ParameterSetName = 'ByFolderPath')]
+        [Parameter(Mandatory,ParameterSetName = 'ByPath')]
         [ValidateNotNullOrEmpty()]
-        [string]$FolderPath,
+        [string]$Path,
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
@@ -536,8 +536,8 @@ function Publish-Module
                 $getModuleName = $Name
                 $moduleName = $Name
             } else {
-                $getModuleName = $FolderPath
-                $moduleName = Split-Path -Path $FolderPath -Leaf
+                $getModuleName = $Path
+                $moduleName = Split-Path -Path $Path -Leaf
             }
             $modulesToPublish = Get-Module -Name $getModuleName -ListAvailable
 
@@ -561,7 +561,7 @@ function Publish-Module
                     else
                     {
                         Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-                        $pkg = New-PmPackage -FolderPath $_.ModuleBase -PassThru -Version $_.Version
+                        $pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
                         Publish-PmPackage @publishPackParams -Path $pkg.FullName
                         Remove-Item -Path $pkg.FullName -ErrorAction Ignore
                     }
@@ -570,7 +570,7 @@ function Publish-Module
 
             @($modulesToPublish).foreach({
                 $newPkgParams = @{
-                    FolderPath = $_.ModuleBase
+                    Path = $_.ModuleBase
                     PassThru = $true
                 }
                 if ($depModules) {
@@ -750,7 +750,7 @@ function Publish-DscResource
 								{
                                     Publish-Module -FeedUrl $FeedUrl -Name $_.Name -
 									Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-									$pkg = New-PmPackage -FolderPath $_.ModuleBase -PassThru -Version $_.Version
+									$pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
 									Publish-PmPackage @publishPackParams -Path $pkg.FullName
 									Remove-Item -Path $pkg.FullName -ErrorAction Ignore
 								}
@@ -760,7 +760,7 @@ function Publish-DscResource
 					})
                 }
                 $newPkgParams = @{
-                    FolderPath = $resourceModule.ModuleBase
+                    Path = $resourceModule.ModuleBase
                     PassThru = $true
                     Version = $resourceModule.Version
                     Tags = "PsDscResource_$resourceName" ## Required for Find-DscResource to find the module
