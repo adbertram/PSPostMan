@@ -21,6 +21,10 @@ function New-Package
 		})]
         [string]$Path,
 
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [version]$Version,
+
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$Name = (Split-Path -Path $Path -Leaf),
@@ -35,10 +39,6 @@ function New-Package
 			}
 		})]
         [string]$PackageFilePath = '.',
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [version]$Version,
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -115,7 +115,7 @@ function New-Package
                 'Dependencies'
             )
 
-            $tempSpecFilePath = "$env:TEMP\$Name.nuspec"
+            $tempSpecFilePath = "$env:TEMP\$((New-Guid).Guid).nuspec"
             $specParams = @{
                 Name = $Name
                 FilePath = $tempSpecFilePath
@@ -129,10 +129,13 @@ function New-Package
             #endregion
 
             ## Create the nuget package
-            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $PackageFilePath.TrimEnd('\') -BasePath $Path.TrimEnd('\')
-            if (($result -join ' ') -notmatch 'Successfully created package') {
-                throw $result
-            } elseif ($PassThru) {
+            Invoke-NuGet -Action 'pack' -Arguments @{ 
+                $packSpec.FullName = $null;
+                OutputDirectory = $PackageFilePath.TrimEnd('\')
+                BasePath = $Path.TrimEnd('\') 
+            }
+            
+            if ($PassThru) {
                 Get-Item -Path "$PackageFilePath\$Name.$Version.nupkg"
             }
         }
@@ -171,7 +174,9 @@ function Invoke-NuGet
         }
     }
     $argString = $argArr -join ' '
-    $result = Invoke-Expression -Command ('"{0}" {1} {2}' -f $Defaults.LocalNuGetExePath,$Action,$argString)
+    $nuGetCmd = "{0} {1} {2}" -f $Defaults.LocalNuGetExePath,$Action,$argString
+    Write-Verbose -Message $nuGetCmd
+    $result = Invoke-Expression -Command $nuGetCmd
     if (($result -join ' ') -notmatch 'Successfully created package') {
         throw $result
     } else {
@@ -350,22 +355,13 @@ function Publish-Package
     {
         try
         {
-            $nugetParams = [ordered]@{
+            $nugetArgs = [ordered]@{
+                $Path = $null
                 Timeout = "-timeout $Timeout"
                 FeedUrl = "-source $FeedUrl"
                 ApiKey = "-ApiKey $ApiKey"
             }
-            $pushArgs = ''
-            $nugetParams.GetEnumerator().where({$PSBoundParameters.ContainsKey($_.Key)}).foreach({
-                $pushArgs += " $($_.Value)"
-            })
-            $pushArgs = $pushArgs.Trim()
-
-            Write-Verbose -Message "Publishing package using Nuget args: [push `"$Path`" $pushArgs]"
-            $result = Invoke-Expression -Command "& '$($Defaults.LocalNuGetExePath)' push `"$Path`" $pushArgs"
-            if (-not ($result -match 'package was pushed')) {
-                throw $result
-            }
+            $null = Invoke-NuGet -Action 'push' -Arguments $nugetArgs
         }
         catch
         {
@@ -424,14 +420,20 @@ function Remove-Package
                     Version = $PackageInfo.Version
                 }
             }
-            $nuGetCli = "& $Defaults.LocalNuGetExePath delete $($pack.Name) $($pack.Version) -NonInteractive -source $FeedUrl"
-            if ($NuGetApiKey) {
-                $nuGetCli += " -ApiKey $NuGetApiKey"
+
+            $nuGetArgs = @{
+                $pack.Name = $null
+                $pack.Version = $null
+                '-NonInteractive' = $null
+                source = $FeedUrl
             }
-            $result = Invoke-Expression $nuGetCli
-            if (($result -join ' ') -notmatch 'was deleted successfully') {
-                throw $result
+            if ($PSBoundParameters.ContainsKey('NuGetApiKey'))
+            {
+                $nuGetArgs.ApiKey = $NuGetApiKey
             }
+
+            
+            Invoke-NuGet -Action 'delete' -Arguments $nuGetArgs
         }
         catch
         {
@@ -685,7 +687,11 @@ function Find-Package
                 $whereFilter = { $_ }
             }
 
-            $packageList = @(& $Defaults.LocalNuGetExePath list -Source $FeedUrl).where($whereFilter)
+            $nugetArgs = @{
+                Source = $FeedUrl
+            }
+
+            $packageList = Invoke-NuGet -Action 'list' -Arguments $nugetArgs
             if ($packageList -notmatch 'no packages found') {
                 @($packageList).foreach({
                     $split = $_.Split(' ') 

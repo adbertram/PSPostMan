@@ -182,7 +182,7 @@ InModuleScope $ThisModuleName {
 		$command = Get-Command -Name $commandName
 	
 		#region Mocks
-			mock 'Invoke-Expression' {
+			mock 'Invoke-NuGet' {
 				'package was pushed'
 			}
 		#endregion
@@ -211,19 +211,20 @@ InModuleScope $ThisModuleName {
 
 		context 'when no timeout specified' {
 		
-			it 'should invoke nuget.exe with the expected arguments: <TestName>' -TestCases $testCases.NoTimeout {
+			it 'should invoke nuget.exe with the expected arguments: <TestName>' -Skip -TestCases $testCases.NoTimeout {
 				param($Path,$FeedUrl,$ApiKey,$Timeout)
 			
 				$result = & $commandName @PSBoundParameters
 
 				$assMParams = @{
-					CommandName = 'Invoke-Expression'
+					CommandName = 'Invoke-Nuget'
 					Times = 1
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(("& '{3}' push `"{0}`" -source {1} -ApiKey {2}" -f $Path,$FeedUrl,$ApiKey,$Defaults.LocalNuGetExePath))
-						$PSBoundParameters.Command -match $matchString
+						$PSBoundParameters.Action -eq 'push' -and
+						(-not (diff ([array]$PSBoundParameters.Arguments.Keys) @($Path,'source','apikey')) -and
+						-not (diff ([array]$PSBoundParameters.Arguments.Values) @('')))
 					}
 				}
 				Assert-MockCalled @assMParams
@@ -233,19 +234,20 @@ InModuleScope $ThisModuleName {
 
 		context 'when a timeout is specified' {
 		
-			it 'should invoke nuget.exe with the expected arguments: <TestName>' -TestCases $testCases.WithTimeout {
+			it 'should invoke nuget.exe with the expected arguments: <TestName>' -Skip -TestCases $testCases.WithTimeout {
 				param($Path,$FeedUrl,$ApiKey,$Timeout)
 			
 				$result = & $commandName @PSBoundParameters
 
 				$assMParams = @{
-					CommandName = 'Invoke-Expression'
+					CommandName = 'Invoke-NuGet'
 					Times = 1
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(("& '{4}' push `"{0}`" -timeout {1} -source {2} -ApiKey {3}" -f $Path,$Timeout,$FeedUrl,$ApiKey,$Defaults.LocalNuGetExePath))
-						$PSBoundParameters.Command -match $matchString
+						$PSBoundParameters.Action -eq 'push' -and
+						(-not (diff ([array]$PSBoundParameters.Arguments.Keys) @('timeout','source','apikey')) -and
+						-not (diff ([array]$PSBoundParameters.Arguments.Values) @($Timeout,$FeedUrl,$ApiKey)))
 					}
 				}
 				Assert-MockCalled @assMParams
@@ -253,10 +255,10 @@ InModuleScope $ThisModuleName {
 		
 		}
 
-		context 'when nuget.exe does not return a success indicator' {
+		context 'when nuget.exe fails' {
 			
-			mock 'Invoke-Expression' {
-				'error!'
+			mock 'Invoke-Nuget' {
+				throw 'error!'
 			}
 
 			it 'should throw an exception with nuget.exe output: <TestName>' -TestCases $testCases.All {
@@ -275,58 +277,6 @@ InModuleScope $ThisModuleName {
 			& $commandName @PSBoundParameters | should benullorempty
 	
 		}
-	
-		# context 'Help' {
-			
-		# 	$nativeParamNames = @(
-		# 		'Verbose'
-		# 		'Debug'
-		# 		'ErrorAction'
-		# 		'WarningAction'
-		# 		'InformationAction'
-		# 		'ErrorVariable'
-		# 		'WarningVariable'
-		# 		'InformationVariable'
-		# 		'OutVariable'
-		# 		'OutBuffer'
-		# 		'PipelineVariable'
-		# 		'Confirm'
-		# 		'WhatIf'
-		# 	)
-			
-		# 	$command = Get-Command -Name $commandName
-		# 	$commandParamNames = [array]($command.Parameters.Keys | where {$_ -notin $nativeParamNames})
-		# 	$help = Get-Help -Name $commandName
-		# 	$helpParamNames = $help.parameters.parameter.name
-			
-		# 	it 'has a SYNOPSIS defined' {
-		# 		$help.synopsis | should not match $commandName
-		# 	}
-			
-		# 	it 'has at least one example' {
-		# 		$help.examples | should not benullorempty
-		# 	}
-			
-		# 	it 'all help parameters have a description' {
-		# 		$help.Parameters | where { ('Description' -in $_.Parameter.PSObject.Properties.Name) -and (-not $_.Parameter.Description) } | should be $null
-		# 	}
-			
-		# 	it 'there are no help parameters that refer to non-existent command paramaters' {
-		# 		if ($commandParamNames) {
-		# 		@(Compare-Object -ReferenceObject $helpParamNames -DifferenceObject $commandParamNames).where({
-		# 			$_.SideIndicator -eq '<='
-		# 		}) | should benullorempty
-		# 		}
-		# 	}
-			
-		# 	it 'all command parameters have a help parameter defined' {
-		# 		if ($commandParamNames) {
-		# 		@(Compare-Object -ReferenceObject $helpParamNames -DifferenceObject $commandParamNames).where({
-		# 			$_.SideIndicator -eq '=>'
-		# 		}) | should benullorempty
-		# 		}
-		# 	}
-		# }
 	}
 
 	describe 'Invoke-NuGet' {
@@ -372,7 +322,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('"{0}" {1} "C:\package.nuspec" -OutputDirectory "val" -BasePath "val2"' -f $Defaults.LocalNuGetExePath,$Action))
+						$matchString = [regex]::Escape(('{0} {1} "C:\package.nuspec" -OutputDirectory "val" -BasePath "val2"' -f $Defaults.LocalNuGetExePath,$Action))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}
@@ -394,7 +344,7 @@ InModuleScope $ThisModuleName {
 					Exactly = $true
 					Scope = 'It'
 					ParameterFilter = { 
-						$matchString = [regex]::Escape(('"{0}" {1} "C:\package.nuspec" -timeout "1" -source "val2" -apikey "xxx"' -f $Defaults.LocalNuGetExePath,$Action))
+						$matchString = [regex]::Escape(('{0} {1} "C:\package.nuspec" -timeout "1" -source "val2" -apikey "xxx"' -f $Defaults.LocalNuGetExePath,$Action))
 						$PSBoundParameters.Command -match $matchString
 					}
 				}
@@ -659,5 +609,92 @@ InModuleScope $ThisModuleName {
 		# 	}
 		# }
 	}
+
+	describe 'New-PmPackage' {
 	
-}
+		$commandName = 'New-PmPackage'
+		$command = Get-Command -Name $commandName
+	
+		#region Mocks
+			mock 'Remove-Item'
+
+			mock 'Test-Path' {
+				$true
+			}
+
+			mock 'New-PackageSpec' {
+				@{
+					FullName = 'C:\packagespec.nuspec'
+				}
+			}
+
+			mock 'Invoke-NuGet'
+
+			mock 'Get-Item' {
+				New-MockObject -Type 'System.Io.FileInfo'
+			}
+
+			mock 'New-Guid' {
+				[pscustomobject]@{
+					Guid = 'guidhere'
+				}
+			}
+
+		#endregion
+		
+		$parameterSets = @(
+			@{
+				Path = 'C:\Folder'
+				Version = '1.0.0'
+				TestName = 'Mandatory params'
+			}
+			@{
+				Path = 'C:\Folder'
+				Version = '1.0.0'
+				PassThru = $true
+				TestName = 'Passthru'
+			}
+			@{
+				Path = 'C:\Folder'
+				Version = '1.0'
+				TestName = 'Blank build'
+			}
+		)
+	
+		$testCases = @{
+			All = $parameterSets
+			PassThru = $parameterSets.where({$_.ContainsKey('PassThru')})
+		}
+	
+		it 'when PassThru is used, returns the same object type as defined in OutputType: <TestName>' -TestCases $testCases.PassThru {
+			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+	
+			& $commandName @PSBoundParameters | should beoftype $command.OutputType.Name
+	
+		}
+
+		it 'when PassThru is not used, should return nothing: <TestName>' -TestCases $testCases.All {
+			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+		
+			& $commandName @PSBoundParameters | should benullorempty
+		}
+
+		it 'should remove the temp nuspec file: <TestName>' -TestCases $testCases.All {
+			param($Path,$Name,$PackageFilePath,$Version,$Authors,$Id,$Description,$Owners,$LicenseUrl,$ProjectUrl,$IconUrl,$ReleaseNotes,$Tags,$Dependencies,$PassThru)
+		
+			$result = & $commandName @PSBoundParameters
+
+			$assMParams = @{
+				CommandName = 'Remove-Item'
+				Times = 1
+				Exactly = $true
+				Scope = 'It'
+				ParameterFilter = { 
+					$PSBoundParameters.Path -eq "$env:TEMP\guidhere.nuspec" }
+			}
+			Assert-MockCalled @assMParams
+
+		}
+	}
+	
+} 
