@@ -34,7 +34,7 @@ function New-Package
 				$true
 			}
 		})]
-        [string]$OutputFolderPath = $Path,
+        [string]$PackageFilePath = '.',
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -129,11 +129,11 @@ function New-Package
             #endregion
 
             ## Create the nuget package
-            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $OutputFolderPath.TrimEnd('\') -BasePath $Path.TrimEnd('\')
+            $result = & $Defaults.LocalNuGetExePath pack $packSpec.FullName -OutputDirectory $PackageFilePath.TrimEnd('\') -BasePath $Path.TrimEnd('\')
             if (($result -join ' ') -notmatch 'Successfully created package') {
                 throw $result
             } elseif ($PassThru) {
-                Get-Item -Path "$OutputFolderPath\$Name.$Version.nupkg"
+                Get-Item -Path "$PackageFilePath\$Name.$Version.nupkg"
             }
         }
         catch
@@ -474,7 +474,7 @@ function New-ModulePackage
     $newPackageParams = @{
         Name = $moduleName
         Path = $Path
-        OutputFolderPath = $Path
+        PackageFilePath = $Path
     }
     if ($PassThru.IsPresent) {
         $newPackageParams.PassThru = $true

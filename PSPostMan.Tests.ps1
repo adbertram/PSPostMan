@@ -111,7 +111,7 @@ InModuleScope $ThisModuleName {
 				ParameterFilter = { 
 					$PSBoundParameters.Name -eq 'module' -and
 					$PSBoundParameters.Path -eq $Path -and
-					$PSBoundParameters.OutputFolderPath -eq $Path
+					$PSBoundParameters.PackageFilePath -eq $Path
 					$PSBoundParameters.Version -eq '1.0' -and
 					$PSBoundParameters.Desription -eq 'deschere'
 					$PSBoundParameters.Authors -eq 'Adam Bertram' -and
