@@ -13,12 +13,15 @@ function New-Package
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({ 
-			if (-not (Test-Path -Path $_ -PathType Container)) {
-				throw "The folder '$_' does not exist."
-			} else {
-				$true
-			}
-		})]
+                if (-not (Test-Path -Path $_ -PathType Container))
+                {
+                    throw "The folder '$_' does not exist."
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [string]$Path,
 
         [Parameter(Mandatory)]
@@ -32,12 +35,15 @@ function New-Package
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({ 
-			if (-not (Test-Path -Path $_ -PathType Container)) {
-				throw "The folder '$_' does not exist."
-			} else {
-				$true
-			}
-		})]
+                if (-not (Test-Path -Path $_ -PathType Container))
+                {
+                    throw "The folder '$_' does not exist."
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [string]$PackageFolderPath = '.',
 
         [Parameter()]
@@ -79,12 +85,15 @@ function New-Package
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({
-            if (-not (Compare-Object $_.Keys @('id','version'))) {
-                throw 'One or more dependencies hashtables does not have the required keys: id and version.'
-            } else {
-                $true
-            }
-        })]
+                if (-not (Compare-Object $_.Keys @('id', 'version')))
+                {
+                    throw 'One or more dependencies hashtables does not have the required keys: id and version.'
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [hashtable[]]$Dependencies,
 
         [Parameter()]
@@ -122,8 +131,8 @@ function New-Package
                 Force = $true
             }
             @($specParamNames).where({ $PSBoundParameters.ContainsKey($_) }).foreach({
-                $specParams[$_] = (Get-Variable -Name $_).Value
-            })
+                    $specParams[$_] = (Get-Variable -Name $_).Value
+                })
 
             $packSpec = New-PackageSpec @specParams
             #endregion
@@ -136,7 +145,8 @@ function New-Package
                 BasePath = $Path.TrimEnd('\') 
             }
             
-            if ($PassThru) {
+            if ($PassThru)
+            {
                 Get-Item -Path "$PackageFolderPath\$Name.$Version.nupkg"
             }
         }
@@ -158,7 +168,7 @@ function Invoke-NuGet
     (
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [ValidateSet('delete','list','pack','push')]
+        [ValidateSet('delete', 'list', 'pack', 'push')]
         [string]$Action,
 
         [Parameter(Mandatory)]
@@ -166,20 +176,53 @@ function Invoke-NuGet
         [hashtable]$Arguments       
     )
 
-    $argArr = @()
-    $argArr += $Arguments.GetEnumerator() | Sort-Object Value | foreach {
-        if (-not $_.Value) {
-            '"{0}"' -f $_.Key
-        } else {
-            '-{0} "{1}"' -f $_.Key,$_.Value
+    try
+    {
+        $argArr = @()
+        $argArr += $Arguments.GetEnumerator() | Sort-Object Value | foreach {
+            if (-not $_.Value)
+            {
+                '"{0}"' -f $_.Key
+            }
+            else
+            {
+                '-{0} "{1}"' -f $_.Key, $_.Value
+            }
         }
-    }
-    $argString = $argArr -join ' '
-    $result = Start-Process -FilePath $Defaults.LocalNuGetExePath -ArgumentList "$Action $argString" -Wait -NoNewWindow
-    if (($result -join ' ') -notmatch 'Successfully created package') {
-        throw $result
-    } else {
-        $result
+        $argString = $argArr -join ' '
+
+        $stdOutTempFile = New-TemporaryFile
+        $stdErrTempFile = New-TemporaryFile
+
+        $startProcessParams = @{
+            FilePath                = $Defaults.LocalNuGetExePath
+            ArgumentList            = "$Action $argString"
+            RedirectStandardError   = $stdErrTempFile.FullName
+            RedirectStandardOutput  = $stdOutTempFile.FullName
+            Wait                    = $true
+            PassThru                = $true
+            NoNewWindow             = $true
+        }
+
+        $cmd = Start-Process @startProcessParams
+        $cmdOutput = Get-Content -Path $stdOutTempFile.FullName -Raw
+        $cmdError = Get-Content -Path $stdErrTempFile.FullName -Raw
+        if (($cmd.ExitCode -ne 0) -or ($cmdOutput -join ' ') -notmatch 'Successfully created package')
+        {
+            throw $cmdError
+        } 
+        else 
+        {
+            Write-Verbose -Message $cmdOutput
+        }
+    } 
+    catch
+    {
+        $PSCmdlet.ThrowTerminatingError($_)
+    } 
+    finally
+    {
+        Remove-Item -Path $stdOutTempFile.FullName, $stdErrTempFile.FullName -Force
     }
 }
 
@@ -196,12 +239,15 @@ function New-PackageSpec
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({ 
-			if ($_ -notmatch '\.nuspec$') {
-				throw 'Invalid file path. Extension must be NUSPEC.'
-			} else {
-				$true
-			}
-		})]
+                if ($_ -notmatch '\.nuspec$')
+                {
+                    throw 'Invalid file path. Extension must be NUSPEC.'
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [string]$FilePath,
 
         [Parameter()]
@@ -260,7 +306,8 @@ function New-PackageSpec
     {
         try
         {
-            if ((Test-Path -Path $FilePath -PathType Leaf) -and (-not $Force.IsPresent)) {
+            if ((Test-Path -Path $FilePath -PathType Leaf) -and (-not $Force.IsPresent))
+            {
                 throw "The file [$($FilePath)] already exists and -Force was not used to overwrite."
             }
 
@@ -287,25 +334,31 @@ function New-PackageSpec
             )
 
             @($optionalNodes).where({ $PSBoundParameters.ContainsKey($_) }).foreach({
-                if ($_ -eq 'Tags') {
-                    $nodeName = $_ -join ' '
-                } else {
-                    $nodeName = $_
-                }
-                $nodeName = $nodeName
-                $xNode = $xDoc.CreateElement($nodeName)
-                if ($_ -eq 'Dependencies') {
-                    @($Dependencies).foreach({
-                        $xDep = $xNode.AppendChild($xDoc.CreateElement('dependency'))
-                        $xDep.SetAttribute('id',$_.id)
-                        $xDep.SetAttribute('version',$_.version)
-                        $null = $xNode.AppendChild($xDep)
-                    })
-                } else {
-                    $xNode.InnerText = (Get-Variable -Name $_).Value
-                }
-                $null = $xDoc.package.metadata.AppendChild($xNode)
-            })
+                    if ($_ -eq 'Tags')
+                    {
+                        $nodeName = $_ -join ' '
+                    }
+                    else
+                    {
+                        $nodeName = $_
+                    }
+                    $nodeName = $nodeName
+                    $xNode = $xDoc.CreateElement($nodeName)
+                    if ($_ -eq 'Dependencies')
+                    {
+                        @($Dependencies).foreach({
+                                $xDep = $xNode.AppendChild($xDoc.CreateElement('dependency'))
+                                $xDep.SetAttribute('id', $_.id)
+                                $xDep.SetAttribute('version', $_.version)
+                                $null = $xNode.AppendChild($xDep)
+                            })
+                    }
+                    else
+                    {
+                        $xNode.InnerText = (Get-Variable -Name $_).Value
+                    }
+                    $null = $xDoc.package.metadata.AppendChild($xNode)
+                })
 
             $xDoc.Save($FilePath)
             Get-Item -Path $FilePath
@@ -326,12 +379,15 @@ function Publish-Package
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({ 
-			if ($_ -notmatch '\.nupkg$') {
-				throw 'Invalid file path. Extension must be NUPKG.'
-			} else {
-				$true
-			}
-		})]
+                if ($_ -notmatch '\.nupkg$')
+                {
+                    throw 'Invalid file path. Extension must be NUPKG.'
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [string]$Path,
 
         [Parameter(Mandatory)]
@@ -375,18 +431,21 @@ function Remove-Package
     [CmdletBinding()]
     param
     (
-        [Parameter(Mandatory,ParameterSetName = 'NoPipeline')]
+        [Parameter(Mandatory, ParameterSetName = 'NoPipeline')]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({
-            if (-not (Compare-Object $_.Keys @('Name','Version'))) {
-                throw 'One or more hashtables in the Package parameter do not have Name/Version key/value pairs.'
-            } else {
-                $true
-            }
-        })]
+                if (-not (Compare-Object $_.Keys @('Name', 'Version')))
+                {
+                    throw 'One or more hashtables in the Package parameter do not have Name/Version key/value pairs.'
+                }
+                else
+                {
+                    $true
+                }
+            })]
         [hashtable]$PackageInfo,
 
-        [Parameter(Mandatory,ValueFromPipeline,ParameterSetName = 'Pipeline')]
+        [Parameter(Mandatory, ValueFromPipeline, ParameterSetName = 'Pipeline')]
         [ValidateNotNullOrEmpty()]
         [object]$Package,
 
@@ -413,7 +472,9 @@ function Remove-Package
                     Name = $Package.Name
                     Version = $Package.Version
                 }
-            } elseif ($PSBoundParameters.ContainsKey('PackageInfo')) {
+            }
+            elseif ($PSBoundParameters.ContainsKey('PackageInfo'))
+            {
                 $pack = @{
                     Name = $PackageInfo.Name
                     Version = $PackageInfo.Version
@@ -463,11 +524,15 @@ function Get-DependentModule
     {
         try
         {
-            if ($depModuleNames = Get-Module -Name $ModuleName -ListAvailable | Select-Object -ExpandProperty RequiredModules) {
+            if ($depModuleNames = Get-Module -Name $ModuleName -ListAvailable | Select-Object -ExpandProperty RequiredModules)
+            {
                 $depModules = Get-Module -Name $depModuleNames -ListAvailable
-                if ($Recurse.IsPresent) {
+                if ($Recurse.IsPresent)
+                {
                     Get-DependentModule -ModuleName $depModules.Name
-                } else {
+                }
+                else
+                {
                     $depModules
                 }
             }
@@ -500,8 +565,8 @@ function New-ModulePackage
         'ModuleVersion' = 'Version'
         'Description' = 'Description'
         'Author' = 'Authors'
-        @('PrivateData','PSData','Tags') = 'Tags'
-        @('PrivateData','PSData','ProjectUri') = 'ProjectUrl'
+        @('PrivateData', 'PSData', 'Tags') = 'Tags'
+        @('PrivateData', 'PSData', 'ProjectUri') = 'ProjectUrl'
     }
 
     $newPackageParams = @{
@@ -509,17 +574,22 @@ function New-ModulePackage
         Path = $Path
         PackageFolderPath = $Path
     }
-    if ($PassThru.IsPresent) {
+    if ($PassThru.IsPresent)
+    {
         $newPackageParams.PassThru = $true
     }
 
     $manifestAttribToPackageMap.GetEnumerator() | foreach {
         $val = $manifest.Clone()
-        if ($_.Key -is 'array') {
-            foreach ($p in $_.Key) { 
+        if ($_.Key -is 'array')
+        {
+            foreach ($p in $_.Key)
+            { 
                 $val = $val.$p 
             }
-        } else {
+        }
+        else
+        {
             $val = $manifest.($_.Key)
         }
         $newPackageParams.($_.Value) = $val
@@ -533,11 +603,11 @@ function Publish-Module
     [CmdletBinding()]
     param
     (
-        [Parameter(Mandatory,ParameterSetName = 'ByName')]
+        [Parameter(Mandatory, ParameterSetName = 'ByName')]
         [ValidateNotNullOrEmpty()]
         [string[]]$Name,
 
-        [Parameter(Mandatory,ParameterSetName = 'ByPath')]
+        [Parameter(Mandatory, ParameterSetName = 'ByPath')]
         [ValidateNotNullOrEmpty()]
         [string]$Path,
 
@@ -565,16 +635,20 @@ function Publish-Module
     {
         try
         {
-            if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+            if ($PSCmdlet.ParameterSetName -eq 'ByName')
+            {
                 $getModuleName = $Name
                 $moduleName = $Name
-            } else {
+            }
+            else
+            {
                 $getModuleName = $Path
                 $moduleName = Split-Path -Path $Path -Leaf
             }
             $modulesToPublish = Get-Module -Name $getModuleName -ListAvailable
 
-            if (@($modulesToPublish).Count -ne @($moduleName).Count) {
+            if (@($modulesToPublish).Count -ne @($moduleName).Count)
+            {
                 throw 'One or more modules could not be found.'
             }
 
@@ -583,43 +657,48 @@ function Publish-Module
                 ApiKey = $NuGetApiKey
             }
 
-            if (($depModules = Get-DependentModule -ModuleName $moduleName -Recurse) -and (-not $PublishDependentModules.IsPresent)) {
+            if (($depModules = Get-DependentModule -ModuleName $moduleName -Recurse) -and (-not $PublishDependentModules.IsPresent))
+            {
                 throw "The module(s) [$($moduleName -join ',')] have dependent module(s) [$($depModules.Name -join ',')]. Use -PublishDependentModules to publish these as well."
-            } else {
+            }
+            else
+            {
                 @($depModules).foreach({
-                    if (-not (Test-ModuleExists -Name $_.Name))
-                    {
-                        throw "The dependenent module [$($_.Name)] needs to be published but was not found."
-                    }
-                    else
-                    {
-                        Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-                        $pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
-                        Publish-PmPackage @publishPackParams -Path $pkg.FullName
-                        Remove-Item -Path $pkg.FullName -ErrorAction Ignore
-                    }
-                })
+                        if (-not (Test-ModuleExists -Name $_.Name))
+                        {
+                            throw "The dependenent module [$($_.Name)] needs to be published but was not found."
+                        }
+                        else
+                        {
+                            Write-Verbose -Message "Creating package for module [$($_.Name)]..."
+                            $pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
+                            Publish-PmPackage @publishPackParams -Path $pkg.FullName
+                            Remove-Item -Path $pkg.FullName -ErrorAction Ignore
+                        }
+                    })
             }
 
             @($modulesToPublish).foreach({
-                $newPkgParams = @{
-                    Path = $_.ModuleBase
-                    PassThru = $true
-                }
-                if ($depModules) {
-                    $newPkgParams.Dependencies = @($depModules).foreach({
-                        @{id=$_.Name;version=$_.Version}
-                    })
-                }
-                $pkg = New-PmModulePackage @newPkgParams
-                Publish-PmPackage @publishPackParams -Path $pkg.FullName
-            })
+                    $newPkgParams = @{
+                        Path = $_.ModuleBase
+                        PassThru = $true
+                    }
+                    if ($depModules)
+                    {
+                        $newPkgParams.Dependencies = @($depModules).foreach({
+                                @{id=$_.Name; version=$_.Version}
+                            })
+                    }
+                    $pkg = New-PmModulePackage @newPkgParams
+                    Publish-PmPackage @publishPackParams -Path $pkg.FullName
+                })
             
         }
         catch
         {
             $PSCmdlet.ThrowTerminatingError($_)
-        } finally {
+        } finally
+        {
             Remove-Item -Path $pkg.FullName -ErrorAction Ignore
         }
     }
@@ -643,9 +722,12 @@ function Test-ModuleExists
     {
         try
         {
-            if (Get-Module -Name $Name -ListAvailable) {
+            if (Get-Module -Name $Name -ListAvailable)
+            {
                 $true
-            } else {
+            }
+            else
+            {
                 $false
             }
         }
@@ -682,7 +764,9 @@ function Find-Package
             if ($PSBoundParameters.ContainsKey('Name'))
             {
                 $whereFilter = { $_ -match "^$($Name -join '|')" }
-            } else {
+            }
+            else
+            {
                 $whereFilter = { $_ }
             }
 
@@ -691,17 +775,21 @@ function Find-Package
             }
 
             $packageList = Invoke-NuGet -Action 'list' -Arguments $nugetArgs
-            if ($packageList -notmatch 'no packages found') {
+            if ($packageList -notmatch 'no packages found')
+            {
                 @($packageList).foreach({
-                    $split = $_.Split(' ') 
-                    $version = $split[-1]
-                    if ($split.Count -eq 2) { 
-                        $packageName = $split[0] 
-                    } else { 
-                        $packageName = $split[0..-2] -join ' '
-                    } 
-                    [pscustomobject]@{Name = $packageName; Version = $version}  
-                })
+                        $split = $_.Split(' ') 
+                        $version = $split[-1]
+                        if ($split.Count -eq 2)
+                        { 
+                            $packageName = $split[0] 
+                        }
+                        else
+                        { 
+                            $packageName = $split[0..-2] -join ' '
+                        } 
+                        [pscustomobject]@{Name = $packageName; Version = $version}  
+                    })
             }
         }
         catch
@@ -721,13 +809,16 @@ function Publish-DscResource
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateScript({ 
-            if (-not (Get-DscResource -Name $_ -ErrorAction Ignore)) {
-                throw "The DSC resource [$($_)] was not found"
-            } else {
-                $true
-            }
+                if (-not (Get-DscResource -Name $_ -ErrorAction Ignore))
+                {
+                    throw "The DSC resource [$($_)] was not found"
+                }
+                else
+                {
+                    $true
+                }
 
-         })]
+            })]
         [string[]]$Name,
 
         [Parameter()]
@@ -756,61 +847,63 @@ function Publish-DscResource
             if ($NuGetApiKey)
             {
                 $publishPackParams.ApiKey = $NuGetApiKey
-			}
+            }
 			
-			## TODO: Need to group these dependency checks together if multiple resources are passed so the same thing
-			## isn't done for every resource. Could also makes these parallel
+            ## TODO: Need to group these dependency checks together if multiple resources are passed so the same thing
+            ## isn't done for every resource. Could also makes these parallel
 			
-			## Ensure any and all dependent modules are available before proceeding
+            ## Ensure any and all dependent modules are available before proceeding
             @($Name).foreach({
-                $resourceName = $_
-                $resourceModule = Get-Module -Name (Get-DscResource -Name $resourceName).ModuleName -ListAvailable
-                Write-Verbose -Message "The DSC resource [$($resourceName)] is in the module [$($resourceModule.Name)]"
-                if ($dscModuleDeps = Get-DependentModule -ModuleName $resourceModule.Name) {
-                    Write-Verbose -Message "Found [$($dscModuleDeps.Count)] dependent module(s)..."
+                    $resourceName = $_
+                    $resourceModule = Get-Module -Name (Get-DscResource -Name $resourceName).ModuleName -ListAvailable
+                    Write-Verbose -Message "The DSC resource [$($resourceName)] is in the module [$($resourceModule.Name)]"
+                    if ($dscModuleDeps = Get-DependentModule -ModuleName $resourceModule.Name)
+                    {
+                        Write-Verbose -Message "Found [$($dscModuleDeps.Count)] dependent module(s)..."
 						
-					$depModulesInFeed = Find-Package -Name $dscModuleDeps.Name
-                    @($dscModuleDeps).foreach({
-						if ($_.Name -notin $depModulesInFeed.Name)
-						{
-							if (-not $PublishDependentModules.IsPresent)
-							{
-								throw "The dependent module [$($_.Name)] is not published to the feed specified. Downloading this module will fail if uploaded now. Use -PublishDependentModules."
-							}
-							else
-							{
-								if (-not (Test-ModuleExists -Name $_.Name))
-								{
-									throw "The dependenent module [$($_.Name)] needs to be published but was not found."
-								}
-								else
-								{
-                                    Publish-Module -FeedUrl $FeedUrl -Name $_.Name -
-									Write-Verbose -Message "Creating package for module [$($_.Name)]..."
-									$pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
-									Publish-PmPackage @publishPackParams -Path $pkg.FullName
-									Remove-Item -Path $pkg.FullName -ErrorAction Ignore
-								}
-							}
-						}
+                        $depModulesInFeed = Find-Package -Name $dscModuleDeps.Name
+                        @($dscModuleDeps).foreach({
+                                if ($_.Name -notin $depModulesInFeed.Name)
+                                {
+                                    if (-not $PublishDependentModules.IsPresent)
+                                    {
+                                        throw "The dependent module [$($_.Name)] is not published to the feed specified. Downloading this module will fail if uploaded now. Use -PublishDependentModules."
+                                    }
+                                    else
+                                    {
+                                        if (-not (Test-ModuleExists -Name $_.Name))
+                                        {
+                                            throw "The dependenent module [$($_.Name)] needs to be published but was not found."
+                                        }
+                                        else
+                                        {
+                                            Publish-Module -FeedUrl $FeedUrl -Name $_.Name -
+                                            Write-Verbose -Message "Creating package for module [$($_.Name)]..."
+                                            $pkg = New-PmPackage -Path $_.ModuleBase -PassThru -Version $_.Version
+                                            Publish-PmPackage @publishPackParams -Path $pkg.FullName
+                                            Remove-Item -Path $pkg.FullName -ErrorAction Ignore
+                                        }
+                                    }
+                                }
 								
-					})
-                }
-                $newPkgParams = @{
-                    Path = $resourceModule.ModuleBase
-                    PassThru = $true
-                    Version = $resourceModule.Version
-                    Tags = "PsDscResource_$resourceName" ## Required for Find-DscResource to find the module
-                }
-                if ($dscModuleDeps) {
-                    $newPkgParams.Dependencies = @($dscModuleDeps).foreach({
-                        @{id=$_.Name;version=$_.Version}
-                    })
-                }
-                $pkg = New-PmPackage @newPkgParams
-                Publish-PmPackage @publishPackParams -Path $pkg.FullName
-                Remove-Item -Path $pkg.FullName -ErrorAction Ignore
-            })
+                            })
+                    }
+                    $newPkgParams = @{
+                        Path = $resourceModule.ModuleBase
+                        PassThru = $true
+                        Version = $resourceModule.Version
+                        Tags = "PsDscResource_$resourceName" ## Required for Find-DscResource to find the module
+                    }
+                    if ($dscModuleDeps)
+                    {
+                        $newPkgParams.Dependencies = @($dscModuleDeps).foreach({
+                                @{id=$_.Name; version=$_.Version}
+                            })
+                    }
+                    $pkg = New-PmPackage @newPkgParams
+                    Publish-PmPackage @publishPackParams -Path $pkg.FullName
+                    Remove-Item -Path $pkg.FullName -ErrorAction Ignore
+                })
         }
         catch
         {

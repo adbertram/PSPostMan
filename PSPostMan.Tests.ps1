@@ -286,6 +286,12 @@ InModuleScope $ThisModuleName {
 	
 		#region Mocks
 			mock 'Start-Process' {
+				[pscustomobject]@{
+					ExitCode = 0
+				}
+			}
+
+			mock 'Get-Content' {
 				'Successfully created package'
 			}
 		#endregion
@@ -353,22 +359,29 @@ InModuleScope $ThisModuleName {
 		}
 
 		context 'when nuget.exe fails' {
+
+			mock 'Get-Content' {
+				'error!'
+			}
 			
-			mock 'Start-Process'
+			mock 'Start-Process' {
+				[pscustomobject]@{
+					ExitCode = 1
+				}	
+			}
 
 			it 'should throw an exception: <TestName>' -TestCases $testCases.All {
 				param($Action,$Arguments)
 			
 				$params = @{} + $PSBoundParameters
-				{ & $commandName @params } | should throw 
+				{ & $commandName @params } | should throw 'error!'
 			}
 		}
 
-		it 'should return what nuget.exe returns: <TestName>' -TestCases $testCases.All {
+		it 'should return nothing: <TestName>' -TestCases $testCases.All {
 			param($Action,$Arguments)
 		
-			$result = & $commandName @PSBoundParameters
-			$result | should be 'Successfully created package'
+			& $commandName @PSBoundParameters | should benullorempty
 		}
 	}
 
