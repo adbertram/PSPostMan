@@ -329,6 +329,99 @@ InModuleScope $ThisModuleName {
 		# }
 	}
 
+	describe 'Invoke-NuGet' {
+	
+		$commandName = 'Invoke-NuGet'
+		$command = Get-Command -Name $commandName
+	
+		#region Mocks
+			mock 'Invoke-Expression' {
+				'Successfully created package'
+			}
+		#endregion
+		
+		$parameterSets = @(
+			@{
+				Action = 'push'
+				Arguments = @{'C:\package.nuspec' = $null; 'timeout' = '1'; 'source' = 'val2'; 'apikey' = 'xxx'}
+				TestName = 'Push'
+			}
+			@{
+				Action = 'pack'
+				Arguments = @{'C:\package.nuspec' = $null; 'OutputDirectory' = 'val'; 'BasePath' = 'val2'}
+				TestName = 'Pack'
+			}
+		)
+	
+		$testCases = @{
+			All = $parameterSets
+			Pack = $parameterSets.where({$_.Action -eq 'pack'})
+			Push = $parameterSets.where({$_.Action -eq 'push'})
+		}
+		
+		context 'Pack' {
+
+			it 'should pass the expected arguments to nuget.exe: <TestName>' -TestCases $testCases.Pack {
+				param($Action,$Arguments)
+			
+				$result = & $commandName @PSBoundParameters
+
+				$assMParams = @{
+					CommandName = 'Invoke-Expression'
+					Times = 1
+					Exactly = $true
+					Scope = 'It'
+					ParameterFilter = { 
+						$matchString = [regex]::Escape(('"{0}" {1} "C:\package.nuspec" -OutputDirectory "val" -BasePath "val2"' -f $Defaults.LocalNuGetExePath,$Action))
+						$PSBoundParameters.Command -match $matchString
+					}
+				}
+				Assert-MockCalled @assMParams
+			}
+
+		}
+
+		context 'Push' {
+
+			it 'should pass the expected arguments to nuget.exe: <TestName>' -TestCases $testCases.Push {
+				param($Action,$Arguments)
+			
+				$result = & $commandName @PSBoundParameters
+
+				$assMParams = @{
+					CommandName = 'Invoke-Expression'
+					Times = 1
+					Exactly = $true
+					Scope = 'It'
+					ParameterFilter = { 
+						$matchString = [regex]::Escape(('"{0}" {1} "C:\package.nuspec" -timeout "1" -source "val2" -apikey "xxx"' -f $Defaults.LocalNuGetExePath,$Action))
+						$PSBoundParameters.Command -match $matchString
+					}
+				}
+				Assert-MockCalled @assMParams
+			}
+		}
+
+		context 'when nuget.exe fails' {
+			
+			mock 'Invoke-Expression'
+
+			it 'should throw an exception: <TestName>' -TestCases $testCases.All {
+				param($Action,$Arguments)
+			
+				$params = @{} + $PSBoundParameters
+				{ & $commandName @params } | should throw 
+			}
+		}
+
+		it 'should return what nuget.exe returns: <TestName>' -TestCases $testCases.All {
+			param($Action,$Arguments)
+		
+			$result = & $commandName @PSBoundParameters
+			$result | should be 'Successfully created package'
+		}
+	}
+
 	describe 'Publish-PmModule' {
 	
 		$commandName = 'Publish-PmModule'

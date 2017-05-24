@@ -147,6 +147,38 @@ function New-Package
     }
 }
 
+function Invoke-NuGet
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet('delete','list','pack','push')]
+        [string]$Action,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [hashtable]$Arguments       
+    )
+
+    $argArr = @()
+    $argArr += $Arguments.GetEnumerator() | Sort-Object Value | foreach {
+        if (-not $_.Value) {
+            '"{0}"' -f $_.Key
+        } else {
+            '-{0} "{1}"' -f $_.Key,$_.Value
+        }
+    }
+    $argString = $argArr -join ' '
+    $result = Invoke-Expression -Command ('"{0}" {1} {2}' -f $Defaults.LocalNuGetExePath,$Action,$argString)
+    if (($result -join ' ') -notmatch 'Successfully created package') {
+        throw $result
+    } else {
+        $result
+    }
+}
+
 function New-PackageSpec
 {
     [OutputType([System.IO.FileInfo])]
