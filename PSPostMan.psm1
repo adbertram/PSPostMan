@@ -592,7 +592,9 @@ function New-ModulePackage
         {
             $val = $manifest.($_.Key)
         }
-        $newPackageParams.($_.Value) = $val
+        if ($val) {
+            $newPackageParams.($_.Value) = $val
+        }
     }
     New-PmPackage @newPackageParams
 }
