@@ -10,6 +10,7 @@ try {
 		'PSPostMan\\buildscripts'
 		'PSPostMan\\appveyor\.yml'
 		'PSPostMan\\\.git'
+		'PSPostMan\\\.nuspec'
 		'PSPostMan\\README\.md'
 		'PSPostMan\\TestResults\.xml'
 	)
