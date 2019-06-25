@@ -4,3 +4,4 @@
 .sync/IgnoreList
 
 .sync/ID
+.DS_Store
