@@ -28,7 +28,6 @@ InModuleScope $ThisModuleName {
 	$Defaults = @{
 		NugetServerUrl = 'https://www.powershellgallery.com/api/v2/package/'
 		LocalNuGetExePath = 'C:\folder\nuget.exe'
-		NuGetExeUrl = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'
 	}
 
 	describe 'New-PmModulePackage' {
